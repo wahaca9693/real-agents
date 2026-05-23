@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Check } from 'lucide-react'
 
+const API_URL = 'http://localhost:8000/api/auth'
+
 export default function Register() {
   const navigate = useNavigate()
   const [form, setForm] = useState({
@@ -14,10 +16,13 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+  const [verificationEmail, setVerificationEmail] = useState('')
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    setSuccess(false)
 
     if (form.password !== form.confirmPassword) {
       setError('كلمات المرور غير متطابقة')
@@ -30,9 +35,35 @@ export default function Register() {
     }
 
     setLoading(true)
-    await new Promise(resolve => setTimeout(resolve, 1500))
+
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setSuccess(true)
+        setVerificationEmail(form.email)
+        // Navigate to verification page after 3 seconds
+        setTimeout(() => {
+          navigate('/verify-email', { state: { email: form.email } })
+        }, 3000)
+      } else {
+        setError(data.detail || 'حدث خطأ أثناء التسجيل')
+      }
+    } catch (err) {
+      setError('تعذر الاتصال بالخادم')
+    }
+
     setLoading(false)
-    navigate('/login')
   }
 
   const passwordRequirements = [
@@ -60,144 +91,168 @@ export default function Register() {
 
         {/* Form Card */}
         <div className="glass border border-border rounded-2xl p-8">
-          <h1 className="font-syne font-bold text-2xl text-center mb-2">إنشاء حساب جديد</h1>
-          <p className="text-text-secondary text-center mb-8">
-            انضم إلينا وابدأ رحلتك مع الوكلاء البرمجيين
-          </p>
-
-          {error && (
-            <div className="mb-6 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Name */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">الاسم الكامل</label>
-              <div className="relative">
-                <User size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="أحمد محمد"
-                  required
-                  className="input-field pr-12"
-                />
+          {success ? (
+            <div className="text-center">
+              <div className="w-16 h-16 bg-success/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Check size={32} className="text-success" />
               </div>
+              <h2 className="font-syne font-bold text-xl mb-2">تم إنشاء الحساب!</h2>
+              <p className="text-text-secondary mb-4">
+                تم إرسال رمز التحقق إلى بريدك الإلكتروني
+              </p>
+              <p className="text-sm text-text-muted mb-4">
+                {verificationEmail}
+              </p>
+              <Link 
+                to="/verify-email" 
+                state={{ email: verificationEmail }}
+                className="btn-primary inline-block px-8 py-3"
+              >
+                تحقق من البريد
+              </Link>
             </div>
+          ) : (
+            <>
+              <h1 className="font-syne font-bold text-2xl text-center mb-2">إنشاء حساب جديد</h1>
+              <p className="text-text-secondary text-center mb-8">
+                انضم إلينا وابدأ رحلتك مع الوكلاء البرمجيين
+              </p>
 
-            {/* Email */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">البريد الإلكتروني</label>
-              <div className="relative">
-                <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="example@email.com"
-                  required
-                  className="input-field pr-12"
-                />
-              </div>
-            </div>
-
-            {/* Password */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">كلمة المرور</label>
-              <div className="relative">
-                <Lock size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                  className="input-field pr-12 pl-12"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
-                >
-                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                </button>
-              </div>
-              
-              {/* Password Strength */}
-              {form.password && (
-                <div className="mt-3 space-y-1">
-                  {passwordRequirements.map((req, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs">
-                      <Check size={14} className={req.test ? 'text-success' : 'text-text-muted'} />
-                      <span className={req.test ? 'text-success' : 'text-text-muted'}>
-                        {req.text}
-                      </span>
-                    </div>
-                  ))}
+              {error && (
+                <div className="mb-6 p-4 rounded-xl bg-danger/10 border border-danger/30 text-danger text-sm">
+                  {error}
                 </div>
               )}
-            </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="block text-sm text-text-secondary mb-2">تأكيد كلمة المرور</label>
-              <div className="relative">
-                <Lock size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.confirmPassword}
-                  onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
-                  placeholder="••••••••"
-                  required
-                  className="input-field pr-12"
-                />
-              </div>
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Name */}
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">الاسم الكامل</label>
+                  <div className="relative">
+                    <User size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={(e) => setForm({ ...form, name: e.target.value })}
+                      placeholder="أحمد محمد"
+                      required
+                      className="input-field pr-12"
+                    />
+                  </div>
+                </div>
 
-            {/* Terms */}
-            <div className="flex items-start gap-3">
-              <input
-                type="checkbox"
-                id="terms"
-                required
-                className="mt-1 w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary"
-              />
-              <label htmlFor="terms" className="text-sm text-text-secondary">
-                أوافق على{' '}
-                <button type="button" className="text-accent-primary hover:underline">
-                  شروط الاستخدام
-                </button>{' '}
-                و{' '}
-                <button type="button" className="text-accent-primary hover:underline">
-                  سياسة الخصوصية
+                {/* Email */}
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">البريد الإلكتروني</label>
+                  <div className="relative">
+                    <Mail size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={(e) => setForm({ ...form, email: e.target.value })}
+                      placeholder="example@email.com"
+                      required
+                      className="input-field pr-12"
+                    />
+                  </div>
+                </div>
+
+                {/* Password */}
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">كلمة المرور</label>
+                  <div className="relative">
+                    <Lock size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.password}
+                      onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      placeholder="••••••••"
+                      required
+                      className="input-field pr-12 pl-12"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
+                  
+                  {/* Password Strength */}
+                  {form.password && (
+                    <div className="mt-3 space-y-1">
+                      {passwordRequirements.map((req, i) => (
+                        <div key={i} className="flex items-center gap-2 text-xs">
+                          <Check size={14} className={req.test ? 'text-success' : 'text-text-muted'} />
+                          <span className={req.test ? 'text-success' : 'text-text-muted'}>
+                            {req.text}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block text-sm text-text-secondary mb-2">تأكيد كلمة المرور</label>
+                  <div className="relative">
+                    <Lock size={20} className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={form.confirmPassword}
+                      onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+                      placeholder="••••••••"
+                      required
+                      className="input-field pr-12"
+                    />
+                  </div>
+                </div>
+
+                {/* Terms */}
+                <div className="flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    id="terms"
+                    required
+                    className="mt-1 w-4 h-4 rounded border-border text-accent-primary focus:ring-accent-primary"
+                  />
+                  <label htmlFor="terms" className="text-sm text-text-secondary">
+                    أوافق على{' '}
+                    <button type="button" className="text-accent-primary hover:underline">
+                      شروط الاستخدام
+                    </button>{' '}
+                    و{' '}
+                    <button type="button" className="text-accent-primary hover:underline">
+                      سياسة الخصوصية
+                    </button>
+                  </label>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full btn-primary py-4 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 size={20} className="animate-spin" />
+                  ) : (
+                    'إنشاء الحساب'
+                  )}
                 </button>
-              </label>
-            </div>
+              </form>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full btn-primary py-4 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <Loader2 size={20} className="animate-spin" />
-              ) : (
-                'إنشاء الحساب'
-              )}
-            </button>
-          </form>
-
-          {/* Login Link */}
-          <p className="text-center mt-6 text-text-secondary">
-            لديك حساب بالفعل؟{' '}
-            <Link to="/login" className="text-accent-primary hover:underline">
-              سجل دخولك
-            </Link>
-          </p>
+              {/* Login Link */}
+              <p className="text-center mt-6 text-text-secondary">
+                لديك حساب بالفعل؟{' '}
+                <Link to="/login" className="text-accent-primary hover:underline">
+                  سجل دخولك
+                </Link>
+              </p>
+            </>
+          )}
         </div>
       </motion.div>
     </div>

@@ -3,6 +3,7 @@ import { useState, createContext, useContext } from 'react'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
+import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
 import ChatPage from './pages/ChatPage'
 import Settings from './pages/Settings'
@@ -20,7 +21,9 @@ export function useAuth() {
 }
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(true) // Default true for demo
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    !!localStorage.getItem('auth_token')
+  )
 
   return (
     <AuthContext.Provider value={{ isAuthenticated, setIsAuthenticated }}>
@@ -30,6 +33,7 @@ function App() {
             <Route path="/" element={<Landing />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route 
               path="/app" 
               element={isAuthenticated ? <Dashboard /> : <Navigate to="/login" />} 

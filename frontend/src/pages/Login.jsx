@@ -4,6 +4,8 @@ import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react'
 import { useAuth } from '../App'
 
+const API_URL = 'http://localhost:8000/api/auth'
+
 export default function Login() {
   const navigate = useNavigate()
   const { setIsAuthenticated } = useAuth()
@@ -17,13 +19,31 @@ export default function Login() {
     setError('')
     setLoading(true)
 
-    // محاكاة تسجيل الدخول
-    await new Promise(resolve => setTimeout(resolve, 1500))
-    
-    // للتطوير - قبول أي بيانات
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        localStorage.setItem('auth_token', data.access_token)
+        localStorage.setItem('user', JSON.stringify(data.user))
+        setIsAuthenticated(true)
+        navigate('/app')
+      } else {
+        setError(data.detail || 'البريد أو كلمة المرور غير صحيحة')
+      }
+    } catch (err) {
+      setError('تعذر الاتصال بالخادم')
+    }
+
     setLoading(false)
-    setIsAuthenticated(true)
-    navigate('/app')
   }
 
   return (

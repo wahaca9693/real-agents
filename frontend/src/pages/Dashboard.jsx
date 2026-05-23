@@ -1,34 +1,8 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import Sidebar from '../components/Sidebar'
-import { Bot, TrendingUp, Clock, Activity, ArrowLeft, Play } from 'lucide-react'
-
-const recentProjects = [
-  { 
-    id: 1, 
-    name: 'مشروع الموقع', 
-    status: 'active',
-    progress: 75,
-    agent: 'developer',
-    lastUpdate: 'منذ 5 دقائق'
-  },
-  { 
-    id: 2, 
-    name: 'تطبيق الجوال', 
-    status: 'working',
-    progress: 45,
-    agent: 'designer',
-    lastUpdate: 'منذ ساعة'
-  },
-  { 
-    id: 3, 
-    name: 'API Backend', 
-    status: 'completed',
-    progress: 100,
-    agent: 'deployer',
-    lastUpdate: 'أمس'
-  },
-]
+import { Bot, TrendingUp, Clock, Activity, ArrowLeft, Play, LogOut, User } from 'lucide-react'
 
 const stats = [
   { icon: Bot, label: 'مهام منجزة', value: '147', color: 'text-accent-primary' },
@@ -45,15 +19,54 @@ const quickActions = [
 ]
 
 export default function Dashboard() {
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+  }, [])
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('user')
+    window.location.href = '/login'
+  }
+
   return (
     <div className="flex min-h-screen bg-bg-primary">
       <Sidebar />
       
       <main className="flex-1 mr-[280px] p-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-syne font-bold text-3xl mb-2">مرحباً، أحمد 👋</h1>
-          <p className="text-text-secondary">كيف يمكن للوكلاء مساعدتك اليوم؟</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="font-syne font-bold text-3xl mb-2">
+              مرحباً، {user?.name || 'مستخدم'} 👋
+            </h1>
+            <p className="text-text-secondary">كيف يمكن للوكلاء مساعدتك اليوم؟</p>
+          </div>
+          
+          {/* User Menu */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-bg-secondary border border-border">
+              <div className="w-8 h-8 rounded-full bg-accent-primary/20 flex items-center justify-center">
+                <User size={16} className="text-accent-primary" />
+              </div>
+              <div className="text-sm">
+                <div className="font-medium">{user?.name || 'مستخدم'}</div>
+                <div className="text-text-muted text-xs">{user?.email}</div>
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="p-2 rounded-xl bg-bg-secondary border border-border hover:bg-danger/10 hover:text-danger transition-colors"
+              title="تسجيل الخروج"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Stats */}

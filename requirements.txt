@@ -20,6 +20,15 @@ python-dotenv==1.0.0
 # Logging
 loguru==0.7.2
 
+# Authentication & Security
+python-jose[cryptography]==3.3.0  # JWT tokens
+passlib[bcrypt]==1.7.4            # Password hashing
+bcrypt==4.1.2                     # Bcrypt
+
+# Email Verification
+resend==0.9.0                      # Email service
+redis==5.0.1                       # Cache for verification codes
+
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1

@@ -16,6 +16,7 @@ import json
 from app.agents.real_agents import real_agent_team, RealAgent, AgentMessage
 from app.vscode.vscode_controller import vscode_controller
 from app.powershell.real_executor import powershell_executor
+from app.auth.routes import router as auth_router
 
 # Configure logging
 logging.basicConfig(
@@ -71,6 +72,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include Auth Router
+app.include_router(auth_router)
 
 # Request logging
 @app.middleware("http")

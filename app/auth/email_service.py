@@ -38,6 +38,11 @@ MAILGUN_BASE_URL = os.getenv("MAILGUN_BASE_URL", "https://api.mailgun.net/v3")
 BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
 BREVO_BASE_URL = "https://api.brevo.com"
 
+# SendGrid API (Free 100 emails/day)
+# Get your API key from: https://sendgrid.com
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY", "")
+SENDGRID_BASE_URL = "https://api.sendgrid.com/v3"
+
 # Fallback email for testing
 TEST_EMAIL = os.getenv("TEST_EMAIL", "test@example.com")
 
@@ -429,6 +434,42 @@ def send_email_brevo(to_email: str, subject: str, html_body: str, text_body: str
         return False
 
 
+def send_email_sendgrid(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """إرسال بريد باستخدام SendGrid API"""
+    if not SENDGRID_API_KEY:
+        print(f"⚠️ SendGrid not configured. Email to {to_email} not sent.")
+        return False
+    
+    try:
+        response = requests.post(
+            f"{SENDGRID_BASE_URL}/mail/send",
+            headers={
+                "Authorization": f"Bearer {SENDGRID_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "personalizations": [{"to": [{"email": to_email}]}],
+                "from": {"email": "noreply@realagents.com", "name": "Real Agents"},
+                "subject": subject,
+                "content": [
+                    {"type": "text/plain", "value": text_body},
+                    {"type": "text/html", "value": html_body}
+                ]
+            }
+        )
+        
+        if response.status_code in [200, 201, 202]:
+            print(f"✅ Email sent via SendGrid to {to_email}")
+            return True
+        else:
+            print(f"❌ SendGrid error: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Failed to send email via SendGrid to {to_email}: {e}")
+        return False
+
+
 def get_available_email_services() -> list:
     """التحقق من خدمات البريد المتاحة"""
     services = []
@@ -441,6 +482,8 @@ def get_available_email_services() -> list:
         services.append("mailgun")
     if BREVO_API_KEY:
         services.append("brevo")
+    if SENDGRID_API_KEY:
+        services.append("sendgrid")
     
     return services
 
@@ -460,6 +503,10 @@ async def send_email_with_fallback(to_email: str, subject: str, html_body: str, 
     
     if "brevo" in services:
         if send_email_brevo(to_email, subject, html_body, text_body):
+            return True
+    
+    if "sendgrid" in services:
+        if send_email_sendgrid(to_email, subject, html_body, text_body):
             return True
     
     if "smtp" in services:
@@ -506,6 +553,7 @@ def get_email_service_status() -> dict:
         "resend": bool(RESEND_API_KEY),
         "mailgun": bool(MAILGUN_API_KEY and MAILGUN_DOMAIN),
         "brevo": bool(BREVO_API_KEY),
+        "sendgrid": bool(SENDGRID_API_KEY),
         "smtp": bool(SMTP_USER and SMTP_PASSWORD),
         "active_services": get_available_email_services()
     }

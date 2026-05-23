@@ -1,0 +1,25 @@
+# Real Agents Dependencies
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+
+# HTTP Client
+aiohttp==3.9.1
+httpx==0.25.2
+requests==2.31.0
+
+# System
+psutil==5.9.6
+
+# Configuration
+pyyaml==6.0.1
+python-dotenv==1.0.0
+
+# Logging
+loguru==0.7.2
+
+# Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1

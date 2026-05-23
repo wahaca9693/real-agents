@@ -2,9 +2,11 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react'
+import { useAuth } from '../App'
 
-export default function Login({ setAuth }) {
+export default function Login() {
   const navigate = useNavigate()
+  const { setIsAuthenticated } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -20,7 +22,7 @@ export default function Login({ setAuth }) {
     
     // للتطوير - قبول أي بيانات
     setLoading(false)
-    setAuth(true)
+    setIsAuthenticated(true)
     navigate('/app')
   }
 

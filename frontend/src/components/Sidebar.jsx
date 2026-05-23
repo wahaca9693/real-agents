@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -11,7 +11,9 @@ import {
   Lock,
   Trash2,
   LogOut,
-  User
+  User,
+  Users,
+  Home
 } from 'lucide-react'
 
 const mockChats = [
@@ -27,6 +29,14 @@ export default function Sidebar() {
   const [activeChat, setActiveChat] = useState(null)
   const [showNewChat, setShowNewChat] = useState(false)
   const [newChatName, setNewChatName] = useState('')
+  const [user, setUser] = useState(null)
+
+  useEffect(() => {
+    const userData = localStorage.getItem('user')
+    if (userData) {
+      setUser(JSON.parse(userData))
+    }
+  }, [])
 
   const handleNewChat = () => {
     if (!newChatName.trim()) return
@@ -63,6 +73,28 @@ export default function Sidebar() {
             <h1 className="font-syne font-bold text-lg gradient-text">Real Agents</h1>
             <p className="text-xs text-text-muted">منصة الوكلاء البرمجيين</p>
           </div>
+        </div>
+
+        {/* Navigation Links */}
+        <div className="mb-4 space-y-1">
+          <Link
+            to="/app"
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+              location.pathname === '/app' ? 'bg-accent-primary/20 text-accent-primary' : 'hover:bg-bg-hover'
+            }`}
+          >
+            <Home size={18} />
+            <span className="text-sm font-medium">الرئيسية</span>
+          </Link>
+          <Link
+            to="/app/team"
+            className={`flex items-center gap-3 px-3 py-2 rounded-xl transition-all ${
+              location.pathname === '/app/team' ? 'bg-accent-primary/20 text-accent-primary' : 'hover:bg-bg-hover'
+            }`}
+          >
+            <Users size={18} />
+            <span className="text-sm font-medium">فريق العمل</span>
+          </Link>
         </div>
 
         {/* New Chat Button */}
@@ -199,12 +231,12 @@ export default function Sidebar() {
       {/* Footer - User Profile */}
       <div className="p-4 border-t border-border">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-bg-card flex items-center justify-center">
-            <User size={20} className="text-text-secondary" />
+          <div className="w-10 h-10 rounded-full bg-accent-primary/20 flex items-center justify-center">
+            <User size={20} className="text-accent-primary" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate">أحمد محمد</p>
-            <p className="text-xs text-text-muted truncate">ahmed@example.com</p>
+            <p className="font-medium text-sm truncate">{user?.name || 'مستخدم'}</p>
+            <p className="text-xs text-text-muted truncate">{user?.email || ''}</p>
           </div>
           <Link
             to="/app/settings"

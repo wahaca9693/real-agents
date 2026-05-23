@@ -5,6 +5,7 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import VerifyEmail from './pages/VerifyEmail'
 import Dashboard from './pages/Dashboard'
+import Team from './pages/Team'
 import ChatPage from './pages/ChatPage'
 import Settings from './pages/Settings'
 import ProfileSettings from './pages/ProfileSettings'
@@ -46,6 +47,10 @@ function App() {
             <Route path="/app/settings/profile" element={<ProfileSettings />} />
             <Route path="/app/settings/models" element={<ModelsSettings />} />
             <Route path="/app/settings/appearance" element={<AppearanceSettings />} />
+            <Route 
+              path="/app/team" 
+              element={isAuthenticated ? <Team /> : <Navigate to="/login" />} 
+            />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

@@ -232,42 +232,59 @@ class RealAgent:
         # فهم المتطلبات
         understanding = await self.brain.understand_user(description)
         
-        # استخراج اسم الملف
-        file_name = "file.txt"
+        # استخراج اسم الملف ونوعه
+        file_name = "file.py"
+        file_content = 'print("Hello from Real Agents!")\n'
+        
         for word in description.split():
             if word.endswith(('.py', '.js', '.html', '.txt', '.json', '.md')):
                 file_name = word
                 break
-            if "ملف" in description:
-                # استخراج الكلمة بعد "ملف"
-                words = description.split()
-                for i, w in enumerate(words):
-                    if "ملف" in w and i + 1 < len(words):
-                        file_name = words[i + 1] + ".py"
         
-        # تحديد نوع المشروع
-        project_name = "new-project"
-        project_type = "python"
-        
-        if ".js" in file_name or "موقع" in description:
-            project_type = "javascript"
-        if ".html" in file_name:
-            project_type = "javascript"
-        for word in ["أندرويد", "android"]:
-            if word in description.lower():
-                project_type = "android"
+        # استخراج المحتوى من الوصف بناءً على نوع الملف
+        if file_name.endswith('.html'):
+            file_content = f'''<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>صفحة جديدة</title>
+</head>
+<body>
+    <h1>مرحبا بالعالم!</h1>
+</body>
+</html>'''
+        elif "hello" in description.lower() or "مرحبا" in description.lower():
+            if file_name.endswith('.py'):
+                file_content = 'print("Hello World!")\n'
+            elif file_name.endswith('.js'):
+                file_content = 'console.log("Hello World!");\n'
         
         # استخراج اسم المشروع من الوصف
-        for word in description.split():
-            if len(word) > 2 and not word.startswith("في") and not word.startswith("أنشئ"):
-                if word not in ["ملف", "مشروع", "لي"]:
+        project_name = "new-project"
+        words = description.replace("أنشئ", " ").replace("ابني", " ").replace("في", " ").replace("مجلد", " ").split()
+        for word in words:
+            if len(word) > 2 and word not in ["ملف", "مشروع", "لي", "موقع"]:
+                if not word.startswith("."):
                     project_name = word
                     break
+        
+        # تحديد نوع المشروع
+        project_type = "python"
+        if file_name.endswith('.js') or file_name.endswith('.html') or "موقع" in description:
+            project_type = "javascript"
         
         # إنشاء المشروع
         project_result = await self.vscode.create_project(project_name, project_type)
         
-        return project_result
+        # إنشاء الملف الفعلي داخل المشروع
+        file_result = await self.vscode.create_file(project_name, file_name, file_content)
+        
+        return {
+            "project": project_result,
+            "file": file_result,
+            "success": True
+        }
     
     async def _process_message(self, message: AgentMessage):
         """معالجة رسالة"""

@@ -1,105 +1,16 @@
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-
-const App = () => {
-  const [message, setMessage] = React.useState('')
-  const [responses, setResponses] = React.useState([])
-  const [loading, setLoading] = React.useState(false)
-
-  const sendMessage = async () => {
-    if (!message.trim()) return
-    
-    setLoading(true)
-    setResponses(prev => [...prev, { type: 'user', text: message }])
-    
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      })
-      
-      const data = await res.json()
-      
-      if (data.type === 'clarification') {
-        setResponses(prev => [...prev, {
-          type: 'agent',
-          text: `🤔 أحتاج توضيح:\n${data.questions.map(q => `• ${q}`).join('\n')}`
-        }])
-      } else {
-        setResponses(prev => [...prev, {
-          type: 'agent',
-          text: `✅ تم:\n${JSON.stringify(data.output, null, 2)}`
-        }])
-      }
-    } catch (error) {
-      setResponses(prev => [...prev, {
-        type: 'error',
-        text: `❌ خطأ: ${error.message}`
-      }])
-    }
-    
-    setMessage('')
-    setLoading(false)
-  }
-
-  return (
-    <div className="min-h-screen bg-gray-900 text-white p-8">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-8">🤖 Real Agents - الوكلاء الحقيقيين</h1>
-        
-        {/* Chat Area */}
-        <div className="bg-gray-800 rounded-xl p-6 mb-6 h-[500px] overflow-y-auto">
-          {responses.length === 0 && (
-            <p className="text-gray-400 text-center">اكتب أي شيء للبدء...</p>
-          )}
-          
-          {responses.map((r, i) => (
-            <div key={i} className={`mb-4 ${r.type === 'user' ? 'text-right' : 'text-left'}`}>
-              <div className={`inline-block p-4 rounded-lg ${
-                r.type === 'user' ? 'bg-blue-600' : 
-                r.type === 'error' ? 'bg-red-600' : 'bg-gray-700'
-              }`}>
-                <pre className="whitespace-pre-wrap font-sans">{r.text}</pre>
-              </div>
-            </div>
-          ))}
-        </div>
-        
-        {/* Input */}
-        <div className="flex gap-4">
-          <input
-            type="text"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && !loading && sendMessage()}
-            placeholder="اكتب أي شيء... (ابني مشروع، أنشئ ملف، شغل أمر)"
-            className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-6 py-4 outline-none focus:border-blue-500"
-          />
-          <button
-            onClick={sendMessage}
-            disabled={loading}
-            className="bg-blue-600 hover:bg-blue-700 px-8 py-4 rounded-xl font-medium disabled:opacity-50"
-          >
-            {loading ? '...' : 'إرسال'}
-          </button>
-        </div>
-        
-        {/* Quick Actions */}
-        <div className="mt-8 grid grid-cols-4 gap-4">
-          {['ابني مشروع Python', 'أنشئ موقع ويب', 'شغل أمر Shell', 'افتح VS Code'].map((action, i) => (
-            <button
-              key={i}
-              onClick={() => setMessage(action)}
-              className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl text-sm"
-            >
-              {action}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(<App />)
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>منصة الوكلاء البرمجيين | Real Agents</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

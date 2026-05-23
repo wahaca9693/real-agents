@@ -1,0 +1,313 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Syne:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0A0D12;
+  --bg-secondary: #111520;
+  --bg-card: #161B27;
+  --bg-hover: #1E2535;
+  --accent-primary: #4F8EF7;
+  --accent-secondary: #7C5CFC;
+  --accent-glow: rgba(79, 142, 247, 0.25);
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+  --text-primary: #F1F5F9;
+  --text-secondary: #8B95A7;
+  --text-muted: #4B5563;
+  --border: #1E2D40;
+  --border-active: rgba(79, 142, 247, 0.4);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  direction: rtl;
+}
+
+::selection {
+  background-color: var(--accent-primary);
+  color: white;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-primary);
+}
+
+/* Custom Components */
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg font-medium text-white transition-all duration-200;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  }
+  
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px var(--accent-glow);
+  }
+  
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+  
+  .card {
+    @apply rounded-xl p-4;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border);
+  }
+  
+  .card-hover {
+    @apply card transition-all duration-200 cursor-pointer;
+  }
+  
+  .card-hover:hover {
+    background-color: var(--bg-hover);
+    border-color: var(--border-active);
+    box-shadow: 0 8px 32px rgba(79, 142, 247, 0.1);
+  }
+  
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl bg-bg-card border border-border text-text-primary placeholder-text-muted outline-none transition-all duration-200;
+  }
+  
+  .input-field:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+  
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  
+  .badge-success {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: var(--success);
+  }
+  
+  .badge-warning {
+    background-color: rgba(245, 158, 11, 0.15);
+    color: var(--warning);
+  }
+  
+  .badge-danger {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: var(--danger);
+  }
+  
+  .badge-info {
+    background-color: rgba(79, 142, 247, 0.15);
+    color: var(--accent-primary);
+  }
+}
+
+/* Progress Bar */
+.progress-bar {
+  @apply h-1.5 rounded-full overflow-hidden;
+  background-color: var(--bg-hover);
+}
+
+.progress-bar-fill {
+  @apply h-full rounded-full;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+  transition: width 0.5s ease;
+}
+
+/* Toggle Switch */
+.toggle {
+  @apply relative w-12 h-6 rounded-full cursor-pointer transition-colors duration-200;
+  background-color: var(--border);
+}
+
+.toggle.active {
+  background-color: var(--success);
+}
+
+.toggle::after {
+  content: '';
+  @apply absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-200;
+  right: 4px;
+}
+
+.toggle.active::after {
+  right: calc(100% - 20px);
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background-color: var(--bg-secondary);
+  height: 100vh;
+  position: fixed;
+  right: 0;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  z-index: 50;
+}
+
+/* Chat Message Animation */
+@keyframes messageSlideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.message-enter {
+  animation: messageSlideUp 0.3s ease-out;
+}
+
+/* Pulse Animation */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.pulse-dot {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Toast Animation */
+@keyframes toastSlideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.toast-enter {
+  animation: toastSlideIn 0.3s ease-out;
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Background Gradient */
+.bg-gradient-radial {
+  background: radial-gradient(ellipse at top left, #111D35 0%, var(--bg-primary) 60%);
+}
+
+/* Modal Backdrop */
+.modal-backdrop {
+  @apply fixed inset-0 z-50 flex items-center justify-center;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+/* Skeleton Loading */
+.skeleton {
+  @apply rounded-md;
+  background: linear-gradient(90deg, var(--bg-hover) 25%, var(--bg-card) 50%, var(--bg-hover) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Typing Indicator */
+.typing-dot {
+  @apply w-2 h-2 rounded-full;
+  background-color: var(--text-secondary);
+  animation: typing-bounce 1.4s infinite ease-in-out;
+}
+
+.typing-dot:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typing-bounce {
+  0%, 80%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+}
+
+/* Active Nav Item */
+.nav-item {
+  @apply flex items-center gap-3 px-4 py-3 rounded-lg cursor-pointer transition-all duration-150;
+  color: var(--text-secondary);
+}
+
+.nav-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.nav-item.active {
+  @apply bg-bg-card text-text-primary;
+  border-right: 3px solid var(--accent-primary);
+}
+
+/* Glass Effect */
+.glass {
+  background: rgba(17, 21, 32, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}

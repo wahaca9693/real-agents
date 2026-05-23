@@ -42,4 +42,4 @@ workspace/
 
 # Logs
 *.log
-logs/
+logs/node_modules/

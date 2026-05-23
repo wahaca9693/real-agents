@@ -6,6 +6,7 @@
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 import json
 import re
 import asyncio
@@ -78,19 +79,24 @@ class RealAgentBrain:
         # تحديد ما إذا كان واضح
         clarity_score = self._calculate_clarity(message)
         
+        # أنشئ ملف - نعتبره واضح دائماً
+        if ("أنشئ" in message or "ابني" in message) and ("ملف" in message or ".py" in message or ".js" in message):
+            clarity_score = 1.0
+            missing_info = []
+        
         intent = UserIntent(
             intent_id=f"INT-{datetime.now().strftime('%Y%m%d%H%M%S')}",
             raw_text=message,
-            understood=clarity_score > 0.7,
+            understood=clarity_score > 0.5,
             confidence=clarity_score,
             entities=entities,
             missing_info=missing_info
         )
         
-        # توليد أسئلة للتوضيح إذا لزم
-        if clarity_score < 0.8:
-            intent.clarifications_needed = self._generate_clarification_questions(message)
-            intent.suggested_questions = self._generate_suggested_questions(message)
+        # توليد أسئلة للتوضيح فقط إذا كان هناك أسئلة فعلية
+        if missing_info and clarity_score < 0.8:
+            intent.clarifications_needed = missing_info
+            intent.suggested_questions = missing_info
         
         self.context.last_understanding = intent
         
@@ -130,12 +136,22 @@ class RealAgentBrain:
         """البحث عن معلومات ناقصة"""
         missing = []
         
+        # أنشئ/ابني ملف محدد - لا نسأل
+        if ("أنشئ" in text or "ابني" in text) and ("ملف" in text or ".py" in text or ".js" in text or ".html" in text):
+            return []  # واضح جداً
+        
+        # أمر واضح لإنشاء ملف
+        if ("أنشئ" in text or "ابني" in text) and "hello" in text.lower():
+            return []  # واضح - يريد ملف hello
+        
         vague_words = ["شيء", "حاجة", "بيانات", "معلومات"]
         if any(w in text for w in vague_words):
             missing.append("ما المقصود بـ 'البيانات' بالتحديد؟")
         
         if "ابني" in text or "أسوي" in text:
-            missing.append("ما نوع المشروع؟ (موقع، تطبيق، سكربت)")
+            # لا نسأل إذا كان هناك تفاصيل كافية
+            if not any(ext in text for ext in [".py", ".js", ".html", ".txt", "ملف", "مشروع"]):
+                missing.append("ما نوع المشروع؟ (موقع، تطبيق، سكربت)")
         
         if "سهل" in text or "صعب" in text:
             missing.append("ما المستوى المطلوب؟")
@@ -182,12 +198,20 @@ class RealAgentBrain:
         return questions
     
     def _generate_suggested_questions(self, text: str) -> List[str]:
-        """توليد أسئلة مقترحة"""
-        return [
-            "ما اللغة البرمجية المفضلة؟",
-            "هل تريد تصميم معين؟",
-            "ما الميزات الأساسية المطلوبة؟"
-        ]
+        """توليد أسئلة مقترحة بناءً على السياق"""
+        questions = []
+        
+        # أنشئ ملف - نسأل عن المحتوى
+        if ("أنشئ" in text or "ابني" in text) and ("ملف" in text or ".py" in text or ".js" in text):
+            if len(text) < 30:  # وصف قصير جداً
+                questions.append("ما المحتوى الذي تريده في الملف؟")
+                return questions
+        
+        # سؤال عام
+        if "?" not in text:
+            questions.append("ممكن توضح أكثر؟")
+        
+        return questions if questions else []
     
     async def think(self, message: str, knowledge_base: Dict = None) -> AgentThought:
         """التفكير قبل اتخاذ إجراء"""

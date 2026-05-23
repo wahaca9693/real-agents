@@ -4,7 +4,7 @@
 """
 
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 import os
 import subprocess
@@ -187,9 +187,17 @@ class {}Activity : AppCompatActivity() {{
     async def create_file(self, project_name: str, file_path: str, content: str) -> Dict:
         """إنشاء ملف جديد"""
         
+        # البحث عن المشروع - إما في المشاريع المفتوحة أو في workspace
         project_path = self.open_projects.get(project_name)
         if not project_path:
-            return {"success": False, "error": "المشروع غير مفتوح"}
+            # البحث في workspace/projects
+            potential_path = self.workspace_root / "projects" / project_name
+            if potential_path.exists():
+                project_path = str(potential_path)
+            else:
+                # إنشاء المشروع إذا لم يكن موجوداً
+                potential_path.mkdir(parents=True, exist_ok=True)
+                project_path = str(potential_path)
         
         full_path = Path(project_path) / file_path
         full_path.parent.mkdir(parents=True, exist_ok=True)
@@ -199,14 +207,25 @@ class {}Activity : AppCompatActivity() {{
         
         full_path.write_text(content, encoding='utf-8')
         
-        # فتح الملف في VS Code
+        # محاولة فتح الملف في VS Code (اختياري)
+        vscode_opened = False
         if os.name == 'nt':
-            subprocess.Popen(["code", str(full_path)])
+            try:
+                subprocess.Popen(["code", str(full_path)], 
+                                stdout=subprocess.PIPE, 
+                                stderr=subprocess.PIPE)
+                vscode_opened = True
+            except FileNotFoundError:
+                pass
         else:
-            subprocess.Popen(["code", str(full_path)],
-                            stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL,
-                            start_new_session=True)
+            try:
+                subprocess.Popen(["code", str(full_path)],
+                                stdout=subprocess.DEVNULL,
+                                stderr=subprocess.DEVNULL,
+                                start_new_session=True)
+                vscode_opened = True
+            except FileNotFoundError:
+                pass
         
         self.modifications_log.append({
             "action": "create_file",
@@ -219,7 +238,7 @@ class {}Activity : AppCompatActivity() {{
             "success": True,
             "file_path": str(full_path),
             "language": language,
-            "opened_in_vscode": True
+            "opened_in_vscode": vscode_opened
         }
     
     async def edit_file(self, file_path: str, modifications: List[FileModification]) -> Dict:

@@ -54,10 +54,10 @@ class TaskResult:
     task_id: str
     success: bool
     output: Any
+    agent_id: str
     files_created: List[str] = field(default_factory=list)
     commands_executed: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
-    agent_id: str
 
 
 class RealAgent:
@@ -194,6 +194,7 @@ class RealAgent:
             task_id=f"TASK-{datetime.now().strftime('%Y%m%d%H%M%S')}",
             success=False,
             output=None,
+            agent_id=self.agent_id,
             files_created=[],
             commands_executed=[],
             errors=[]
@@ -226,21 +227,44 @@ class RealAgent:
         return result
     
     async def _create_project_workflow(self, description: str) -> Dict:
-        """سير عمل إنشاء مشروع"""
+        """سير عمل إنشاء مشروع أو ملف"""
         
         # فهم المتطلبات
-        await self.brain.understand_user(description)
+        understanding = await self.brain.understand_user(description)
         
-        # إنشاء المشروع
-        project_name = description.split()[1] if len(description.split()) > 1 else "new-project"
+        # استخراج اسم الملف
+        file_name = "file.txt"
+        for word in description.split():
+            if word.endswith(('.py', '.js', '.html', '.txt', '.json', '.md')):
+                file_name = word
+                break
+            if "ملف" in description:
+                # استخراج الكلمة بعد "ملف"
+                words = description.split()
+                for i, w in enumerate(words):
+                    if "ملف" in w and i + 1 < len(words):
+                        file_name = words[i + 1] + ".py"
+        
+        # تحديد نوع المشروع
+        project_name = "new-project"
         project_type = "python"
         
-        for word in ["موقع", "website", "web"]:
+        if ".js" in file_name or "موقع" in description:
             project_type = "javascript"
+        if ".html" in file_name:
+            project_type = "javascript"
+        for word in ["أندرويد", "android"]:
+            if word in description.lower():
+                project_type = "android"
         
-        for word in ["تطبيق", "app", "أندرويد", "android"]:
-            project_type = "android"
+        # استخراج اسم المشروع من الوصف
+        for word in description.split():
+            if len(word) > 2 and not word.startswith("في") and not word.startswith("أنشئ"):
+                if word not in ["ملف", "مشروع", "لي"]:
+                    project_name = word
+                    break
         
+        # إنشاء المشروع
         project_result = await self.vscode.create_project(project_name, project_type)
         
         return project_result

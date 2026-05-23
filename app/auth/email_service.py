@@ -10,10 +10,15 @@ from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from typing import Optional
 import resend
+import requests
 
 # ============================================================================
 # EMAIL CONFIGURATION - تكوين البريد
 # ============================================================================
+
+# Resend API (Recommended - Free 100 emails/month)
+# Get your API key from: https://resend.com/api-keys
+RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
 
 # SMTP Configuration (Gmail/Outlook/etc.)
 SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
@@ -22,8 +27,16 @@ SMTP_USER = os.getenv("SMTP_USER", "")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
 SMTP_FROM_NAME = os.getenv("SMTP_FROM_NAME", "Real Agents")
 
-# Resend API (Alternative email service)
-RESEND_API_KEY = os.getenv("RESEND_API_KEY", "")
+# Mailgun API (Free 5,000 emails/month)
+# Get your API key from: https://mailgun.com
+MAILGUN_API_KEY = os.getenv("MAILGUN_API_KEY", "")
+MAILGUN_DOMAIN = os.getenv("MAILGUN_DOMAIN", "")
+MAILGUN_BASE_URL = os.getenv("MAILGUN_BASE_URL", "https://api.mailgun.net/v3")
+
+# Brevo API (Free 300 emails/day)
+# Get your API key from: https://www.brevo.com
+BREVO_API_KEY = os.getenv("BREVO_API_KEY", "")
+BREVO_BASE_URL = "https://api.brevo.com"
 
 # Fallback email for testing
 TEST_EMAIL = os.getenv("TEST_EMAIL", "test@example.com")
@@ -351,71 +364,148 @@ def send_email_resend(to_email: str, subject: str, html_body: str) -> bool:
         return False
 
 
+def send_email_mailgun(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """إرسال بريد باستخدام Mailgun API"""
+    if not MAILGUN_API_KEY or not MAILGUN_DOMAIN:
+        print(f"⚠️ Mailgun not configured. Email to {to_email} not sent.")
+        return False
+    
+    try:
+        response = requests.post(
+            f"{MAILGUN_BASE_URL}/{MAILGUN_DOMAIN}/messages",
+            auth=("api", MAILGUN_API_KEY),
+            data={
+                "from": f"Real Agents <mailgun@{MAILGUN_DOMAIN}>",
+                "to": to_email,
+                "subject": subject,
+                "html": html_body,
+                "text": text_body
+            }
+        )
+        
+        if response.status_code == 200:
+            print(f"✅ Email sent via Mailgun to {to_email}")
+            return True
+        else:
+            print(f"❌ Mailgun error: {response.json()}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Failed to send email via Mailgun to {to_email}: {e}")
+        return False
+
+
+def send_email_brevo(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """إرسال بريد باستخدام Brevo API (Sendinblue)"""
+    if not BREVO_API_KEY:
+        print(f"⚠️ Brevo not configured. Email to {to_email} not sent.")
+        return False
+    
+    try:
+        response = requests.post(
+            f"{BREVO_BASE_URL}/v3/smtp/email",
+            headers={
+                "api-key": BREVO_API_KEY,
+                "Content-Type": "application/json"
+            },
+            json={
+                "sender": {"name": "Real Agents", "email": "noreply@realagents.com"},
+                "to": [{"email": to_email}],
+                "subject": subject,
+                "htmlContent": html_body,
+                "textContent": text_body
+            }
+        )
+        
+        if response.status_code in [200, 201]:
+            print(f"✅ Email sent via Brevo to {to_email}")
+            return True
+        else:
+            print(f"❌ Brevo error: {response.json()}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Failed to send email via Brevo to {to_email}: {e}")
+        return False
+
+
+def get_available_email_services() -> list:
+    """التحقق من خدمات البريد المتاحة"""
+    services = []
+    
+    if RESEND_API_KEY:
+        services.append("resend")
+    if SMTP_USER and SMTP_PASSWORD:
+        services.append("smtp")
+    if MAILGUN_API_KEY and MAILGUN_DOMAIN:
+        services.append("mailgun")
+    if BREVO_API_KEY:
+        services.append("brevo")
+    
+    return services
+
+
+async def send_email_with_fallback(to_email: str, subject: str, html_body: str, text_body: str) -> bool:
+    """إرسال بريد مع fallback بين الخدمات المتاحة"""
+    services = get_available_email_services()
+    
+    # محاولة كل خدمة متاحة
+    if "resend" in services:
+        if send_email_resend(to_email, subject, html_body):
+            return True
+    
+    if "mailgun" in services:
+        if send_email_mailgun(to_email, subject, html_body, text_body):
+            return True
+    
+    if "brevo" in services:
+        if send_email_brevo(to_email, subject, html_body, text_body):
+            return True
+    
+    if "smtp" in services:
+        if send_email_smtp(to_email, subject, html_body, text_body):
+            return True
+    
+    # إذا لم تعمل أي خدمة، اطبع في الكونسول
+    print(f"\n" + "="*60)
+    print(f"📧 EMAIL (Fallback)")
+    print(f"="*60)
+    print(f"To: {to_email}")
+    print(f"Subject: {subject}")
+    print(f"="*60 + "\n")
+    return True
+
+
 async def send_verification_email(to_email: str, name: str, code: str) -> bool:
     """إرسال بريد التحقق"""
     subject, html_body, text_body = get_verification_email_template(name, code)
-    
-    # محاولة الإرسال عبر Resend أولاً
-    if RESEND_API_KEY:
-        return send_email_resend(to_email, subject, html_body)
-    
-    # ثم SMTP
-    if SMTP_USER and SMTP_PASSWORD:
-        return send_email_smtp(to_email, subject, html_body, text_body)
-    
-    # إذا لم يتم تكوين أي خدمة، نطبع في الكونسول
-    print(f"\n" + "="*60)
-    print(f"📧 EMAIL VERIFICATION CODE")
-    print(f"="*60)
-    print(f"To: {to_email}")
-    print(f"Name: {name}")
-    print(f"Code: {code}")
-    print(f"="*60 + "\n")
-    return True
+    return await send_email_with_fallback(to_email, subject, html_body, text_body)
 
 
 async def send_welcome_email(to_email: str, name: str) -> bool:
     """إرسال بريد الترحيب"""
     subject, html_body, text_body = get_welcome_email_template(name)
-    
-    if RESEND_API_KEY:
-        return send_email_resend(to_email, subject, html_body)
-    
-    if SMTP_USER and SMTP_PASSWORD:
-        return send_email_smtp(to_email, subject, html_body, text_body)
-    
-    print(f"✅ Welcome email would be sent to {to_email}")
-    return True
+    return await send_email_with_fallback(to_email, subject, html_body, text_body)
 
 
 async def send_password_reset_email(to_email: str, name: str, code: str) -> bool:
     """إرسال بريد إعادة تعيين كلمة المرور"""
     subject, html_body, text_body = get_password_reset_email_template(name, code)
-    
-    if RESEND_API_KEY:
-        return send_email_resend(to_email, subject, html_body)
-    
-    if SMTP_USER and SMTP_PASSWORD:
-        return send_email_smtp(to_email, subject, html_body, text_body)
-    
-    print(f"\n" + "="*60)
-    print(f"🔑 PASSWORD RESET CODE")
-    print(f"="*60)
-    print(f"To: {to_email}")
-    print(f"Name: {name}")
-    print(f"Code: {code}")
-    print(f"="*60 + "\n")
-    return True
+    return await send_email_with_fallback(to_email, subject, html_body, text_body)
 
 
 async def send_password_changed_notification(to_email: str, name: str) -> bool:
     """إرسال إشعار تغيير كلمة المرور"""
     subject, html_body, text_body = get_password_changed_email_template(name)
-    
-    if RESEND_API_KEY:
-        return send_email_resend(to_email, subject, html_body)
-    
-    if SMTP_USER and SMTP_PASSWORD:
-        return send_email_smtp(to_email, subject, html_body, text_body)
-    
-    return True
+    return await send_email_with_fallback(to_email, subject, html_body, text_body)
+
+
+def get_email_service_status() -> dict:
+    """التحقق من حالة خدمات البريد"""
+    return {
+        "resend": bool(RESEND_API_KEY),
+        "mailgun": bool(MAILGUN_API_KEY and MAILGUN_DOMAIN),
+        "brevo": bool(BREVO_API_KEY),
+        "smtp": bool(SMTP_USER and SMTP_PASSWORD),
+        "active_services": get_available_email_services()
+    }

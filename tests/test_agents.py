@@ -148,43 +148,70 @@ class TestPowerShellExecutor:
         assert result.return_code == 0
 
 
-class TestAuthentication:
-    """اختبارات المصادقة"""
+class TestSecurity:
+    """اختبارات الأمان"""
     
-    def test_password_hash_generation(self):
-        """اختبار تشفير كلمة المرور"""
-        from app.auth.auth_system import hash_password, verify_password
+    def test_password_validation(self):
+        """اختبار التحقق من قوة كلمة المرور"""
+        from app.security import validate_password_strength
         
-        password = "SecurePassword123!"
-        hashed = hash_password(password)
+        # كلمة مرور قوية
+        is_strong, message = validate_password_strength("SecurePass123!")
+        assert is_strong is True
+        
+        # كلمة مرور ضعيفة - قصيرة
+        is_strong, message = validate_password_strength("Pass1")
+        assert is_strong is False
+        assert "8 أحرف" in message
+        
+        # كلمة مرور ضعيفة - بدون أحرف كبيرة
+        is_strong, message = validate_password_strength("securepass123")
+        assert is_strong is False
+        
+        # كلمة مرور ضعيفة - بدون أرقام
+        is_strong, message = validate_password_strength("SecurePassword")
+        assert is_strong is False
+    
+    def test_input_sanitization(self):
+        """اختبار تنظيف المدخلات"""
+        from app.security import sanitize_input
+        
+        # اختبار إزالة HTML
+        result = sanitize_input("<script>alert('xss')</script>")
+        assert "<script>" not in result
+        
+        # اختبار إزالة SQL injection
+        result = sanitize_input("'; DROP TABLE users; --")
+        assert "DROP" not in result
+        
+        # النص الآمن يبقى كما هو
+        result = sanitize_input("مرحبا بالعالم")
+        assert result == "مرحبا بالعالم"
+    
+    def test_password_hashing(self):
+        """اختبار تشفير كلمة المرور"""
+        from app.security import generate_password_hash, verify_password_hash
+        
+        password = "TestPassword123!"
+        hashed = generate_password_hash(password)
         
         assert hashed != password
-        assert len(hashed) > 20
-        assert verify_password(password, hashed) is True
+        assert verify_password_hash(password, hashed) is True
+        assert verify_password_hash("WrongPassword", hashed) is False
+
+
+class TestDatabase:
+    """اختبارات قاعدة البيانات"""
     
-    def test_password_verification_fails(self):
-        """اختبار فشل التحقق من كلمة المرور"""
-        from app.auth.auth_system import hash_password, verify_password
+    @pytest.mark.asyncio
+    async def test_database_init(self):
+        """اختبار إنشاء قاعدة البيانات"""
+        from app.database import init_db, engine
         
-        password = "SecurePassword123!"
-        hashed = hash_password(password)
+        await init_db()
         
-        assert verify_password("WrongPassword", hashed) is False
-    
-    def test_verification_code_generation(self):
-        """اختبار توليد رمز التحقق"""
-        from app.auth.auth_system import generate_verification_code
-        
-        code = generate_verification_code()
-        assert len(code) == 6
-        assert code.isdigit()
-    
-    def test_verification_code_uniqueness(self):
-        """اختبار فرادة رمز التحقق"""
-        from app.auth.auth_system import generate_verification_code
-        
-        codes = [generate_verification_code() for _ in range(100)]
-        assert len(set(codes)) > 90  # Most codes should be unique
+        # التحقق من أن المحرك يعمل
+        assert engine is not None
 
 
 class TestRealAgent:

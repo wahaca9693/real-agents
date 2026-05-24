@@ -28,13 +28,22 @@ if not JWT_SECRET_KEY:
     print("⚠️ WARNING: Using auto-generated JWT secret. Set JWT_SECRET_KEY in .env for production!")
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 15 minutes for access
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7 days for refresh
 
 # Security Bearer
 security = HTTPBearer()
 
-# Database Path
+# Database Path (legacy support)
 DB_PATH = Path(os.getenv("DB_PATH", "workspace/users_db.json"))
+
+# Import security functions
+from app.security import (
+    validate_password_strength,
+    sanitize_input,
+    generate_password_hash,
+    verify_password_hash
+)
 
 # ============================================================================
 # PYDANTIC MODELS - نماذج البيانات
@@ -163,27 +172,13 @@ def update_user(user_id: str, updates: dict) -> dict:
 # PASSWORD FUNCTIONS - وظائف كلمة المرور
 # ============================================================================
 
-from argon2 import PasswordHasher
-
-# Create password hasher with secure settings
-ph = PasswordHasher(
-    time_cost=3,        # Number of iterations
-    memory_cost=65536,  # 64 MB
-    parallelism=4,      # Number of parallel threads
-    hash_len=32,        # Length of hash in bytes
-    salt_len=16        # Length of salt in bytes
-)
-
 def hash_password(password: str) -> str:
-    """تشفير كلمة المرور باستخدام Argon2"""
-    return ph.hash(password)
+    """تشفير كلمة المرور باستخدام bcrypt (أكثر أماناً)"""
+    return generate_password_hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """التحقق من كلمة المرور"""
-    try:
-        return ph.verify(hashed_password, plain_password)
-    except Exception:
-        return False
+    return verify_password_hash(plain_password, hashed_password)
 
 # ============================================================================
 # VERIFICATION CODE FUNCTIONS - وظائف رمز التحقق

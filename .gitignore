@@ -33,8 +33,9 @@ env/
 *.swo
 *~
 
-# Node modules (dependencies are installed from package.json)
-frontend/node_modules/
+# OS
+.DS_Store
+Thumbs.db
 
 # Workspace files (local only)
 workspace/

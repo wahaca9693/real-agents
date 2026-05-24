@@ -1,9 +1,9 @@
 """
 Real Agents - Authentication API Routes
-مسارات API المصادقة
+مسارات API المصادقة - مع تحسينات الأمان
 """
 
-from fastapi import APIRouter, HTTPException, Depends, Body
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 
@@ -15,9 +15,15 @@ from .auth_system import (
     request_password_reset,
     reset_password,
     get_current_user,
-    UserResponse,
-    TokenResponse,
-    MessageResponse
+    ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_DAYS
+)
+
+# Import security functions
+from app.security import (
+    limiter,
+    validate_password_strength,
+    sanitize_input
 )
 
 # ============================================================================
@@ -44,6 +50,9 @@ class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="البريد الإلكتروني")
     password: str = Field(..., description="كلمة المرور")
 
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str = Field(..., description="Refresh Token")
+
 class ResendCodeRequest(BaseModel):
     email: EmailStr = Field(..., description="البريد الإلكتروني")
 
@@ -64,23 +73,45 @@ class UpdateProfileRequest(BaseModel):
     phone: Optional[str] = None
 
 # ============================================================================
-# PUBLIC ROUTES - المسارات العامة
+# HELPER FUNCTIONS
+# ============================================================================
+
+def get_client_ip(request: Request) -> str:
+    """الحصول على عنوان IP العميل"""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+# ============================================================================
+# PUBLIC ROUTES - المسارات العامة (مع Rate Limiting)
 # ============================================================================
 
 @router.post("/register", response_model=dict, summary="تسجيل حساب جديد")
-async def register(request: RegisterRequest):
+@limiter.limit("5/minute")
+async def register(request: Request, body: RegisterRequest):
     """
     تسجيل مستخدم جديد
     
     - يرسل رمز تحقق إلى البريد الإلكتروني
     - يجب تفعيل الحساب قبل أول تسجيل دخول
+    - **Rate Limit**: 5 طلبات في الدقيقة
     """
+    # التحقق من قوة كلمة المرور
+    is_strong, message = validate_password_strength(body.password)
+    if not is_strong:
+        raise HTTPException(
+            status_code=400,
+            detail=f"كلمة المرور ضعيفة: {message}"
+        )
+    
     result = await register_user(
-        name=request.name,
-        email=request.email,
-        password=request.password,
-        phone=request.phone
+        name=sanitize_input(body.name),
+        email=body.email.lower().strip(),
+        password=body.password,
+        phone=sanitize_input(body.phone) if body.phone else None
     )
+    
     return {
         "success": True,
         "message": result["message"],
@@ -90,46 +121,73 @@ async def register(request: RegisterRequest):
 
 
 @router.post("/verify-email", response_model=dict, summary="تفعيل البريد الإلكتروني")
-async def verify_email(request: VerifyRequest):
+@limiter.limit("10/minute")
+async def verify_email(request: Request, body: VerifyRequest):
     """
     التحقق من البريد الإلكتروني برمز التحقق
     
-    - يرجع توكن الدخول عند نجاح التفعيل
+    - يرجع access_token و refresh_token عند نجاح التفعيل
     """
-    result = await verify_user_email(request.email, request.code)
+    result = await verify_user_email(body.email.lower().strip(), body.code)
     return {
         "success": True,
         "message": result["message"],
         "access_token": result["access_token"],
-        "token_type": result["token_type"],
+        "refresh_token": result.get("refresh_token", ""),
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         "user": result["user"]
     }
 
 
 @router.post("/login", response_model=dict, summary="تسجيل الدخول")
-async def login(request: LoginRequest):
+@limiter.limit("10/minute")
+async def login(request: Request, body: LoginRequest):
     """
     تسجيل الدخول
     
-    - يرجع توكن للوصول إلى المسارات المحمية
+    - يرجع access_token و refresh_token
     - يجب تفعيل الحساب أولاً
     """
-    result = await login_user(request.email, request.password)
+    result = await login_user(body.email.lower().strip(), body.password)
     return {
         "success": True,
         "message": "تم تسجيل الدخول بنجاح",
         "access_token": result["access_token"],
-        "token_type": result["token_type"],
+        "refresh_token": result.get("refresh_token", ""),
+        "token_type": "bearer",
+        "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        "refresh_expires_in": REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         "user": result["user"]
     }
 
 
+@router.post("/refresh-token", response_model=dict, summary="تحديث التوكن")
+@limiter.limit("20/minute")
+async def refresh_token(request: Request, body: RefreshTokenRequest):
+    """
+    تحديث Access Token باستخدام Refresh Token
+    """
+    from .auth_system import verify_refresh_token
+    
+    result = verify_refresh_token(body.refresh_token)
+    if not result:
+        raise HTTPException(
+            status_code=401,
+            detail="Refresh Token غير صالح أو منتهي الصلاحية"
+        )
+    
+    return result
+
+
 @router.post("/resend-code", response_model=dict, summary="إعادة إرسال رمز التحقق")
-async def resend_code(request: ResendCodeRequest):
+@limiter.limit("5/minute")
+async def resend_code(request: Request, body: ResendCodeRequest):
     """
     إعادة إرسال رمز التحقق إلى البريد الإلكتروني
     """
-    result = await resend_verification_code(request.email)
+    result = await resend_verification_code(body.email.lower().strip())
     return {
         "success": True,
         "message": result["message"],
@@ -138,13 +196,14 @@ async def resend_code(request: ResendCodeRequest):
 
 
 @router.post("/forgot-password", response_model=dict, summary="نسيت كلمة المرور")
-async def forgot_password(request: ForgotPasswordRequest):
+@limiter.limit("3/minute")
+async def forgot_password(request: Request, body: ForgotPasswordRequest):
     """
     طلب إعادة تعيين كلمة المرور
     
     - يرسل رمز تحقق إذا كان البريد مسجلاً
     """
-    result = await request_password_reset(request.email)
+    result = await request_password_reset(body.email.lower().strip())
     return {
         "success": True,
         "message": result["message"]
@@ -152,19 +211,29 @@ async def forgot_password(request: ForgotPasswordRequest):
 
 
 @router.post("/reset-password", response_model=dict, summary="إعادة تعيين كلمة المرور")
-async def reset_pwd(request: ResetPasswordRequest):
+@limiter.limit("5/minute")
+async def reset_pwd(request: Request, body: ResetPasswordRequest):
     """
     إعادة تعيين كلمة المرور بالرمز المرسل إلى البريد
     """
+    # التحقق من قوة كلمة المرور الجديدة
+    is_strong, message = validate_password_strength(body.new_password)
+    if not is_strong:
+        raise HTTPException(
+            status_code=400,
+            detail=f"كلمة المرور الجديدة ضعيفة: {message}"
+        )
+    
     result = await reset_password(
-        request.email,
-        request.code,
-        request.new_password
+        body.email.lower().strip(),
+        body.code,
+        body.new_password
     )
     return {
         "success": True,
         "message": result["message"]
     }
+
 
 # ============================================================================
 # PROTECTED ROUTES - المسارات المحمية
@@ -185,7 +254,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
 
 @router.put("/profile", response_model=dict, summary="تحديث الملف الشخصي")
 async def update_profile(
-    request: UpdateProfileRequest,
+    body: UpdateProfileRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -196,10 +265,10 @@ async def update_profile(
     from .auth_system import update_user
     
     updates = {}
-    if request.name:
-        updates["name"] = request.name
-    if request.phone is not None:
-        updates["phone"] = request.phone
+    if body.name:
+        updates["name"] = sanitize_input(body.name)
+    if body.phone is not None:
+        updates["phone"] = sanitize_input(body.phone) if body.phone else None
     
     if updates:
         updated_user = update_user(current_user["id"], updates)
@@ -219,7 +288,7 @@ async def update_profile(
 
 @router.post("/change-password", response_model=dict, summary="تغيير كلمة المرور")
 async def change_password(
-    request: ChangePasswordRequest,
+    body: ChangePasswordRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -231,18 +300,25 @@ async def change_password(
     from .auth_system import verify_password, hash_password, load_db, save_db
     
     # التحقق من كلمة المرور القديمة
-    user = current_user
     db = load_db()
     for u in db["users"]:
         if u["id"] == current_user["id"]:
-            if not verify_password(request.old_password, u["password"]):
+            if not verify_password(body.old_password, u["password"]):
                 raise HTTPException(
                     status_code=400,
                     detail="كلمة المرور القديمة غير صحيحة"
                 )
             
+            # التحقق من قوة كلمة المرور الجديدة
+            is_strong, message = validate_password_strength(body.new_password)
+            if not is_strong:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"كلمة المرور الجديدة ضعيفة: {message}"
+                )
+            
             # تحديث كلمة المرور
-            u["password"] = hash_password(request.new_password)
+            u["password"] = hash_password(body.new_password)
             u["updated_at"] = datetime.now().isoformat()
             save_db(db)
             break
@@ -259,7 +335,6 @@ async def logout(current_user: dict = Depends(get_current_user)):
     تسجيل الخروج
     
     - يتطلب توكن وصول صالح
-    - ملاحظة: في التطبيق الحقيقي، يجب إضافة التوكن إلى قائمة الرفض
     """
     return {
         "success": True,
@@ -283,6 +358,13 @@ async def auth_health():
         return {
             "status": "healthy",
             "auth_system": "active",
+            "security_features": {
+                "rate_limiting": True,
+                "password_strength_check": True,
+                "jwt_access_tokens": True,
+                "jwt_refresh_tokens": True,
+                "input_sanitization": True
+            },
             "features": [
                 "user_registration",
                 "email_verification",

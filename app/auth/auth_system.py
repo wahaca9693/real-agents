@@ -1,6 +1,7 @@
 """
 Real Agents - Authentication System
 نظام المصادقة والتحقق من البريد الإلكتروني
+Security Enhanced - CSRF Protection & Secure IDs
 """
 
 from datetime import datetime, timedelta
@@ -9,9 +10,10 @@ import random
 import string
 import json
 import os
+import secrets
 from pathlib import Path
 
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from jose import JWTError, jwt
@@ -23,13 +25,17 @@ from jose import JWTError, jwt
 # JWT Settings
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not JWT_SECRET_KEY:
-    import secrets
     JWT_SECRET_KEY = secrets.token_hex(32)
     print("⚠️ WARNING: Using auto-generated JWT secret. Set JWT_SECRET_KEY in .env for production!")
 
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))  # 15 minutes for access
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))  # 7 days for refresh
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "15"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+
+# CSRF Secret for form protection
+CSRF_SECRET_KEY = os.getenv("CSRF_SECRET_KEY")
+if not CSRF_SECRET_KEY:
+    CSRF_SECRET_KEY = secrets.token_hex(32)
 
 # Security Bearer
 security = HTTPBearer()
@@ -125,6 +131,46 @@ def find_user_by_id(user_id: str) -> Optional[dict]:
             return user
     return None
 
+def generate_user_id() -> str:
+    """توليد معرف مستخدم آمن باستخدام UUID"""
+    return f"user_{secrets.token_urlsafe(16)}"
+
+def generate_csrf_token() -> str:
+    """توليد CSRF token للتحقق من صحة الطلبات"""
+    return secrets.token_urlsafe(32)
+
+def verify_csrf_token(token: str, expected: str) -> bool:
+    """التحقق من CSRF token بطريقة آمنة (timing-safe)"""
+    if not token or not expected:
+        return False
+    return secrets.compare_digest(token, expected)
+
+# CSRF Token Storage (in production, use Redis or database)
+csrf_tokens_store = {}
+
+def store_csrf_token(user_id: str) -> str:
+    """تخزين CSRF token للمستخدم"""
+    token = generate_csrf_token()
+    csrf_tokens_store[user_id] = {
+        "token": token,
+        "created_at": datetime.now(),
+        "expires_at": datetime.now() + timedelta(hours=1)
+    }
+    return token
+
+def get_csrf_token(user_id: str) -> Optional[str]:
+    """الحصول على CSRF token للمستخدم"""
+    token_data = csrf_tokens_store.get(user_id)
+    if not token_data:
+        return None
+    
+    # Check expiration
+    if datetime.now() > token_data["expires_at"]:
+        del csrf_tokens_store[user_id]
+        return None
+    
+    return token_data["token"]
+
 def create_user(name: str, email: str, password: str, phone: str = None) -> dict:
     """إنشاء مستخدم جديد"""
     db = load_db()
@@ -136,9 +182,9 @@ def create_user(name: str, email: str, password: str, phone: str = None) -> dict
             detail="البريد الإلكتروني مسجل مسبقاً"
         )
     
-    # إنشاء المستخدم
+    # إنشاء المستخدم مع معرف آمن
     user = {
-        "id": f"user_{datetime.now().timestamp()}",
+        "id": generate_user_id(),
         "name": name,
         "email": email.lower(),
         "password": hash_password(password),
@@ -247,7 +293,7 @@ def verify_code(email: str, code: str) -> bool:
 def create_access_token(data: dict) -> str:
     """إنشاء توكن الوصول"""
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 

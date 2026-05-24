@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../components/Sidebar'
 import { motion } from 'framer-motion'
 import { Users, Plus, TrendingUp, Trophy, CheckCircle, Clock, AlertCircle } from 'lucide-react'
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+import api from '../services/api'
 
 const roleLabels = {
   coordinator: 'منسق',
@@ -56,17 +55,12 @@ export default function Team() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [teamRes, agentsRes, statsRes, tasksRes] = await Promise.all([
-        fetch(`${API_URL}/team/team`),
-        fetch(`${API_URL}/team/list`),
-        fetch(`${API_URL}/team/stats`),
-        fetch(`${API_URL}/team/tasks/list`)
+      const [teamData, agentsData, statsData, tasksData] = await Promise.all([
+        api.request('/team/team'),
+        api.request('/team/list'),
+        api.request('/team/stats'),
+        api.request('/team/tasks/list')
       ])
-      
-      const teamData = await teamRes.json()
-      const agentsData = await agentsRes.json()
-      const statsData = await statsRes.json()
-      const tasksData = await tasksRes.json()
       
       setTeam(teamData.team)
       setAgents(agentsData.agents)
@@ -84,14 +78,9 @@ export default function Team() {
     
     try {
       setCreating(true)
-      const res = await fetch(`${API_URL}/team/tasks/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newTask)
-      })
+      const task = await api.createTask(newTask.title, newTask.description, newTask.task_type)
       
-      if (res.ok) {
-        const task = await res.json()
+      if (task) {
         setTasks(prev => [task, ...prev])
         setShowNewTask(false)
         setNewTask({ title: '', description: '', task_type: 'development', priority: 1 })

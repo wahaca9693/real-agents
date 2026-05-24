@@ -18,6 +18,13 @@ const quickActions = [
   { emoji: '🗄️', label: 'قاعدة بيانات', action: 'أنشئ قاعدة بيانات' },
 ]
 
+// Recent Projects Data
+const recentProjects = [
+  { id: 1, name: 'مشروع الموقع', status: 'active', progress: 75, lastUpdate: 'منذ ساعة' },
+  { id: 2, name: 'تطبيق الجوال', status: 'working', progress: 45, lastUpdate: 'منذ 3 ساعات' },
+  { id: 3, name: 'API Backend', status: 'completed', progress: 100, lastUpdate: 'منذ يوم' },
+]
+
 export default function Dashboard() {
   const [user, setUser] = useState(null)
 

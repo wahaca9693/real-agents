@@ -285,5 +285,246 @@ class TestAgentTeam:
         assert all("name" in a for a in agents_list)
 
 
+class TestAuthSecurity:
+    """اختبارات الأمان والمصادقة"""
+    
+    def test_generate_user_id(self):
+        """اختبار توليد معرف مستخدم آمن"""
+        from app.auth.auth_system import generate_user_id
+        
+        user_id = generate_user_id()
+        
+        assert user_id.startswith("user_")
+        assert len(user_id) > 10  # UUID should be reasonably long
+        assert "timestamp" not in user_id  # Should not be timestamp-based
+    
+    def test_generate_csrf_token(self):
+        """اختبار توليد CSRF token"""
+        from app.auth.auth_system import generate_csrf_token
+        
+        token1 = generate_csrf_token()
+        token2 = generate_csrf_token()
+        
+        assert len(token1) > 20
+        assert token1 != token2  # Each token should be unique
+    
+    def test_verify_csrf_token(self):
+        """اختبار التحقق من CSRF token"""
+        from app.auth.auth_system import generate_csrf_token, verify_csrf_token
+        
+        token = generate_csrf_token()
+        
+        assert verify_csrf_token(token, token) is True
+        assert verify_csrf_token(token, "wrong") is False
+        assert verify_csrf_token("", token) is False
+        assert verify_csrf_token(token, "") is False
+    
+    def test_store_and_get_csrf_token(self):
+        """اختبار تخزين واسترجاع CSRF token"""
+        from app.auth.auth_system import store_csrf_token, get_csrf_token
+        
+        user_id = "test_user_123"
+        token = store_csrf_token(user_id)
+        
+        assert token is not None
+        stored = get_csrf_token(user_id)
+        assert stored == token
+    
+    def test_csrf_token_expiration(self):
+        """اختبار انتهاء صلاحية CSRF token"""
+        from app.auth.auth_system import store_csrf_token, get_csrf_token
+        import time
+        
+        user_id = "test_user_expiry"
+        token = store_csrf_token(user_id)
+        
+        # Token should be valid immediately
+        assert get_csrf_token(user_id) == token
+
+
+class TestAuthSystem:
+    """اختبارات نظام المصادقة"""
+    
+    def test_init_database(self):
+        """اختبار تهيئة قاعدة البيانات"""
+        from app.auth.auth_system import init_database, DB_PATH
+        
+        init_database()
+        
+        assert DB_PATH.exists()
+    
+    def test_hash_password(self):
+        """اختبار تشفير كلمة المرور"""
+        from app.auth.auth_system import hash_password, verify_password
+        
+        password = "SecurePass123!"
+        hashed = hash_password(password)
+        
+        assert hashed != password
+        assert verify_password(password, hashed) is True
+        assert verify_password("WrongPassword", hashed) is False
+    
+    def test_create_user_id_uniqueness(self):
+        """اختبار uniqueness معرف المستخدم"""
+        from app.auth.auth_system import generate_user_id
+        
+        ids = [generate_user_id() for _ in range(100)]
+        unique_ids = set(ids)
+        
+        assert len(ids) == len(unique_ids)  # All IDs should be unique
+
+
+class TestEmailService:
+    """اختبارات خدمة البريد"""
+    
+    def test_email_service_status(self):
+        """اختبار حالة خدمة البريد"""
+        from app.auth.email_service import get_email_service_status
+        
+        status = get_email_service_status()
+        
+        assert isinstance(status, dict)
+        assert "resend" in status
+        assert "smtp" in status
+        assert "active_services" in status
+    
+    def test_verification_email_template(self):
+        """اختبار قالب بريد التحقق"""
+        from app.auth.email_service import get_verification_email_template
+        
+        subject, html, text = get_verification_email_template("Test User", "123456")
+        
+        assert "Test User" in html
+        assert "123456" in html
+        assert subject is not None
+        assert len(html) > 100
+
+
+class TestVSCodeControllerExtended:
+    """اختبارات موسعة لمتحكم VS Code"""
+    
+    @pytest.mark.asyncio
+    async def test_create_python_file(self):
+        """اختبار إنشاء ملف Python"""
+        from app.vscode.vscode_controller import VSCodeController
+        import uuid
+        
+        controller = VSCodeController()
+        project_name = f"test_project_{uuid.uuid4().hex[:8]}"
+        
+        result = await controller.create_python_file(
+            project_name,
+            "test_module.py",
+            'print("Hello World")\n',
+            "src"
+        )
+        
+        assert result["success"] is True
+    
+    @pytest.mark.asyncio
+    async def test_create_js_file(self):
+        """اختبار إنشاء ملف JavaScript"""
+        from app.vscode.vscode_controller import VSCodeController
+        import uuid
+        
+        controller = VSCodeController()
+        
+        result = await controller.create_js_file(
+            f"test_{uuid.uuid4().hex[:8]}",
+            "test.js",
+            'console.log("Hello");\n'
+        )
+        
+        assert result["success"] is True
+
+
+class TestPowerShellExecutorExtended:
+    """اختبارات موسعة لمنفذ الأوامر"""
+    
+    def test_execute_simple_command(self):
+        """اختبار تنفيذ أمر بسيط"""
+        import asyncio
+        from app.powershell.real_executor import PowerShellExecutor
+        
+        executor = PowerShellExecutor()
+        
+        async def run_test():
+            result = await executor.execute("echo 'test'")
+            return result
+        
+        result = asyncio.get_event_loop().run_until_complete(run_test())
+        
+        assert result.success is True
+        assert result.return_code == 0
+    
+    def test_write_and_read_file(self):
+        """اختبار كتابة وقراءة ملف"""
+        import asyncio
+        from app.powershell.real_executor import PowerShellExecutor
+        import tempfile
+        import os
+        
+        executor = PowerShellExecutor()
+        test_file = tempfile.NamedTemporaryFile(delete=False, suffix='.txt')
+        test_file.close()
+        
+        async def run_test():
+            write_result = await executor.write_file(test_file.name, "Test content")
+            assert write_result.success is True
+            
+            read_result = await executor.read_file(test_file.name)
+            return read_result
+        
+        result = asyncio.get_event_loop().run_until_complete(run_test())
+        
+        assert result.success is True
+        
+        # Cleanup
+        os.unlink(test_file.name)
+
+
+class TestSecurityExtended:
+    """اختبارات أمان موسعة"""
+    
+    def test_xss_prevention(self):
+        """اختبار منع XSS"""
+        from app.security import sanitize_input
+        
+        # Malicious scripts - sanitize_input removes HTML tags
+        xss_attempts = [
+            "<script>alert('xss')</script>",
+            "<img src=x onerror=alert(1)>",
+            "';alert('xss');//"
+        ]
+        
+        for attempt in xss_attempts:
+            result = sanitize_input(attempt)
+            # HTML tags should be removed
+            assert "<script>" not in result.lower()
+            assert "<img" not in result.lower()
+            # onerror attribute should be removed
+            assert "onerror" not in result.lower()
+            # onload attribute should be removed
+            assert "onload" not in result.lower()
+    
+    def test_sql_injection_prevention(self):
+        """اختبار منع SQL Injection"""
+        from app.security import sanitize_input
+        
+        sql_injections = [
+            "'; DROP TABLE users; --",
+            "1' OR '1'='1",
+            "admin'--",
+            "UNION SELECT * FROM passwords",
+            "'; INSERT INTO users VALUES ('hacker');--"
+        ]
+        
+        for attempt in sql_injections:
+            result = sanitize_input(attempt)
+            assert "DROP" not in result.upper()
+            assert "UNION" not in result.upper()
+            assert "INSERT" not in result.upper()
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

@@ -3,8 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react'
 import { useAuth } from '../App'
-
-const API_URL = 'http://localhost:8000/api/auth'
+import api from '../services/api'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -20,16 +19,7 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: form.email,
-          password: form.password
-        })
-      })
-
-      const data = await response.json()
+      const data = await api.login(form.email, form.password)
 
       if (data.success) {
         localStorage.setItem('auth_token', data.access_token)
@@ -40,7 +30,7 @@ export default function Login() {
         setError(data.detail || 'البريد أو كلمة المرور غير صحيحة')
       }
     } catch (err) {
-      setError('تعذر الاتصال بالخادم')
+      setError(err.message || 'تعذر الاتصال بالخادم')
     }
 
     setLoading(false)

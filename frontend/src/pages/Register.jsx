@@ -2,8 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, User, Loader2, Check } from 'lucide-react'
-
-const API_URL = 'http://localhost:8000/api/auth'
+import api from '../services/api'
 
 export default function Register() {
   const navigate = useNavigate()
@@ -37,17 +36,7 @@ export default function Register() {
     setLoading(true)
 
     try {
-      const response = await fetch(`${API_URL}/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: form.name,
-          email: form.email,
-          password: form.password
-        })
-      })
-
-      const data = await response.json()
+      const data = await api.register(form.name, form.email, form.password)
 
       if (data.success) {
         setSuccess(true)
@@ -60,7 +49,7 @@ export default function Register() {
         setError(data.detail || 'حدث خطأ أثناء التسجيل')
       }
     } catch (err) {
-      setError('تعذر الاتصال بالخادم')
+      setError(err.message || 'تعذر الاتصال بالخادم')
     }
 
     setLoading(false)

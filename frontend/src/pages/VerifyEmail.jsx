@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Mail, Lock, Loader2, Check, AlertCircle } from 'lucide-react'
-
-const API_URL = 'http://localhost:8000/api/auth'
+import api from '../services/api'
 
 export default function VerifyEmail() {
   const location = useLocation()
@@ -65,16 +64,7 @@ export default function VerifyEmail() {
     setError('')
 
     try {
-      const response = await fetch(`${API_URL}/verify-email`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: email,
-          code: verificationCode
-        })
-      })
-
-      const data = await response.json()
+      const data = await api.verifyEmail(email, verificationCode)
 
       if (data.success) {
         setSuccess(true)
@@ -90,7 +80,7 @@ export default function VerifyEmail() {
         setError(data.detail || 'الرمز غير صحيح')
       }
     } catch (err) {
-      setError('تعذر الاتصال بالخادم')
+      setError(err.message || 'تعذر الاتصال بالخادم')
     }
 
     setLoading(false)
@@ -101,7 +91,7 @@ export default function VerifyEmail() {
     setError('')
 
     try {
-      const response = await fetch(`${API_URL}/resend-code`, {
+      const response = await fetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })

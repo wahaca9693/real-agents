@@ -313,7 +313,3 @@ class RealAgentBrain:
             ]
         
         return alternatives
-
-
-# === Import Enum ===
-from enum import Enum

@@ -6,6 +6,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.104-green.svg)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-blue.svg)](https://reactjs.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 </div>
@@ -33,23 +34,39 @@ real-agents/
 │   ├── brain/                    # 🧠 عقل الوكيل
 │   │   └── agent_brain.py       # فهم المستخدم، التفكير، التعلم
 │   ├── agents/                   # 👥 فريق الوكلاء
-│   │   └── real_agents.py      # 6 وكلاء متخصصين
+│   │   ├── real_agents.py        # الوكلاء الحقيقيون
+│   │   ├── routes.py             # مسارات API الوكلاء
+│   │   └── team.py               # إدارة الفريق
 │   ├── memory/                   # 💾 نظام الذاكرة
-│   │   └── agent_memory.py      # ذاكرة قصيرة وطويلة المدى
+│   │   └── agent_memory.py       # ذاكرة قصيرة وطويلة المدى
 │   ├── vscode/                   # 💻 تكامل VSCode
-│   │   └── vscode_controller.py # تحكم حقيقي بالـ VSCode
+│   │   └── vscode_controller.py  # تحكم حقيقي بالـ VSCode
 │   ├── powershell/               # ⚡ منفذ الأوامر
-│   │   └── real_executor.py     # تنفيذ أوامر حقيقية
-│   ├── core/                    # ⚙️ القلب المركزي
-│   ├── files/                    # 📁 إدارة الملفات
-│   └── execution/                # 🚀 محرك التنفيذ
-├── frontend/                     # 🎨 واجهة المستخدم
-│   ├── index.html
-│   └── src/
-│       └── App.jsx
+│   │   └── real_executor.py      # تنفيذ أوامر حقيقية
+│   └── auth/                     # 🔐 نظام المصادقة
+│       ├── auth_system.py        # نظام المصادقة
+│       ├── email_service.py      # خدمة البريد
+│       └── routes.py             # مسارات المصادقة
+├── frontend/                     # 🎨 واجهة المستخدم (React + Vite)
+│   ├── src/
+│   │   ├── components/           # المكونات
+│   │   │   ├── AgentMessage.jsx
+│   │   │   ├── InputBox.jsx
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── Toast.jsx
+│   │   └── pages/                # الصفحات
+│   │       ├── Dashboard.jsx
+│   │       ├── ChatPage.jsx
+│   │       ├── Login.jsx
+│   │       ├── Register.jsx
+│   │       └── Settings.jsx
+│   └── package.json
+├── tests/                        # 🧪 الاختبارات
+│   └── test_agents.py
+├── workspace/                    # 📁 مساحة العمل
 ├── main.py                       # 🚀 نقطة البداية
-└── requirements.txt             # 📦 التبعيات
-```
+├── requirements.txt              # 📦 تبعيات Python
+└── .env.example                  # ⚙️ متغيرات البيئة
 
 ---
 
@@ -150,32 +167,52 @@ await agent.broadcast_to_colleagues("العمل منتهي")
 ## 🚀 التشغيل
 
 ### 1. التثبيت
-```bash
-# استنساخ المشروع
-git clone https://gitlab.com/svbdh/real-agents.git
-cd real-agents
 
-# إنشاء بيئة افتراضية
+**الخطوة 1: استنساخ المشروع**
+```bash
+git clone https://github.com/wahaca9693/real-agents.git
+cd real-agents
+```
+
+**الخطوة 2: إنشاء بيئة افتراضية**
+```bash
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
 # أو: venv\Scripts\activate  # Windows
+```
 
-# تثبيت التبعيات
+**الخطوة 3: تثبيت التبعيات**
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. التشغيل
+**الخطوة 4: إعداد متغيرات البيئة**
 ```bash
-# تشغيل الخادم
+cp .env.example .env
+# ثم عدل .env وأضف المفاتيح الخاصة بك
+```
+
+### 2. تشغيل الخادم
+
+```bash
+# تشغيل التطبيق
 python main.py
 
 # أو مع uvicorn
 uvicorn main:app --reload --port 8000
 ```
 
-### 3. فتح API Docs
+### 3. تشغيل الواجهة الأمامية (الفرنت)
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+### 4. فتح API Docs
 ```
 http://localhost:8000/docs
+http://localhost:8000/redoc
 ```
 
 ---
